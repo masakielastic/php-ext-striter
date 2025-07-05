@@ -25,9 +25,11 @@ PHP_FUNCTION(str_iter)
 
 ## Second Parameter Specification
 - **Default**: `"grapheme"` - Uses PCRE2 to handle Unicode grapheme clusters
-- **Alternative**: `"codepoint"` - Uses `php_next_utf8_char` for individual codepoints
+- **Alternative 1**: `"codepoint"` - Uses `php_next_utf8_char` for individual codepoints
+- **Alternative 2**: `"byte"` - Iterates through individual bytes (raw byte access)
 - **Grapheme mode**: Handles complex Unicode sequences like emoji with modifiers, combining characters
 - **Codepoint mode**: Maintains original behavior for individual Unicode codepoints
+- **Byte mode**: Provides raw byte-level access to string data
 
 ## StringIterator Class Structure
 
@@ -35,7 +37,8 @@ PHP_FUNCTION(str_iter)
 ```c
 typedef enum {
     STRITER_MODE_GRAPHEME = 0,
-    STRITER_MODE_CODEPOINT = 1
+    STRITER_MODE_CODEPOINT = 1,
+    STRITER_MODE_BYTE = 2
 } striter_mode_t;
 
 typedef struct _striter_string_iterator_obj {
@@ -52,38 +55,44 @@ typedef struct _striter_string_iterator_obj {
 
 #### 1. `__construct(string $str, string $mode = "grapheme")`
 - Initialize the iterator with the source string and mode
-- Calculate total character count based on mode:
+- Calculate total character/byte count based on mode:
   - Grapheme mode: Use PCRE2 with `\X` pattern for grapheme clusters
   - Codepoint mode: Use `php_next_utf8_char` for individual codepoints
+  - Byte mode: Use string length for total byte count
 
 #### 2. `getIterator(): Iterator`
 - Return `$this` (self-iterator pattern)
 
 #### 3. `current(): string`
-- Return current character/grapheme cluster as string
+- Return current character/grapheme cluster/byte as string
 - Mode-dependent extraction:
   - Grapheme mode: Use PCRE2 to extract grapheme cluster at current position
   - Codepoint mode: Use `php_next_utf8_char` to extract codepoint at current position
+  - Byte mode: Return single byte at current position
 
 #### 4. `key(): int`
 - Return current character index (0-based)
 
 #### 5. `next(): void`
-- Advance to next character/grapheme cluster
-- Mode-dependent advancement logic
+- Advance to next character/grapheme cluster/byte
+- Mode-dependent advancement logic:
+  - Grapheme/Codepoint mode: Advance by character index
+  - Byte mode: Advance by single byte
 
 #### 6. `rewind(): void`
 - Reset position to beginning (position = 0, char_index = 0)
 
 #### 7. `valid(): bool`
-- Check if current position is valid (char_index < total_chars)
+- Check if current position is valid:
+  - Grapheme/Codepoint mode: char_index < total_chars
+  - Byte mode: char_index < string_byte_length
 
 ## Character Iteration Strategy
 
 ### Invalid Byte Sequence Handling
 **Important specification**: Invalid byte sequences are treated as regular characters. The implementation ignores error conditions and processes all bytes as characters regardless of UTF-8 validity.
 
-### Dual Mode Implementation
+### Triple Mode Implementation
 
 #### Grapheme Mode (Default) - Using PCRE2
 ```c
@@ -105,6 +114,13 @@ unsigned int char_code = php_next_utf8_char((unsigned char *)str_val, remaining_
 // char_code contains the Unicode codepoint (or invalid byte value)
 ```
 
+#### Byte Mode - Direct Byte Access
+```c
+// Simple byte-by-byte iteration
+size_t byte_count = str_len;  // Total bytes = string length
+char current_byte = str[position];  // Direct byte access
+```
+
 ### Character Extraction Process
 
 #### Grapheme Mode Process
@@ -119,6 +135,13 @@ unsigned int char_code = php_next_utf8_char((unsigned char *)str_val, remaining_
 3. **Ignore status return value** - treat all byte sequences as characters
 4. Convert Unicode codepoint back to UTF-8 string for `current()` method
 5. Track both byte position and character index
+
+#### Byte Mode Process
+1. Start at byte position 0
+2. Return single byte at current position as string
+3. Advance position by 1 byte
+4. Track byte index (same as position)
+5. Total count equals string length in bytes
 
 ### PCRE2 Known Issues
 - **Consecutive emoji bug**: PCRE2 may incorrectly handle sequences of multiple emoji

@@ -49,8 +49,10 @@ PHP_FUNCTION(str_iter)
         obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
         obj->mode = STRITER_MODE_CODEPOINT;
 #endif
-    } else {
+    } else if (iter_mode == STRITER_MODE_CODEPOINT) {
         obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
+    } else if (iter_mode == STRITER_MODE_BYTE) {
+        obj->total_chars = striter_count_bytes(ZSTR_VAL(str), ZSTR_LEN(str));
     }
 }
 
@@ -114,6 +116,8 @@ striter_mode_t striter_parse_mode(const char *mode_str) {
     
     if (strcmp(mode_str, "codepoint") == 0) {
         return STRITER_MODE_CODEPOINT;
+    } else if (strcmp(mode_str, "byte") == 0) {
+        return STRITER_MODE_BYTE;
     }
     
     // Default to grapheme mode for any other value
@@ -313,6 +317,21 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
     return NULL;
 }
 #endif
+
+// Count bytes (simply return string length)
+size_t striter_count_bytes(const char *str, size_t len) {
+    return len;
+}
+
+// Get byte at specific position
+zend_string *striter_get_byte_at_position(const char *str, size_t str_len, size_t byte_index) {
+    if (byte_index >= str_len) {
+        return NULL;
+    }
+    
+    // Return single byte as string
+    return zend_string_init(str + byte_index, 1, 0);
+}
 
 // Function entries
 const zend_function_entry striter_functions[] = {

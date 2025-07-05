@@ -75,8 +75,10 @@ PHP_METHOD(StringIterator, __construct)
         obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
         obj->mode = STRITER_MODE_CODEPOINT;
 #endif
-    } else {
+    } else if (iter_mode == STRITER_MODE_CODEPOINT) {
         obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
+    } else if (iter_mode == STRITER_MODE_BYTE) {
+        obj->total_chars = striter_count_bytes(ZSTR_VAL(str), ZSTR_LEN(str));
     }
 }
 
@@ -114,12 +116,18 @@ PHP_METHOD(StringIterator, current)
                 &byte_pos
             );
         }
-    } else {
+    } else if (obj->mode == STRITER_MODE_CODEPOINT) {
         char_str = striter_get_char_at_position(
             ZSTR_VAL(obj->str), 
             ZSTR_LEN(obj->str), 
             obj->char_index, 
             &byte_pos
+        );
+    } else if (obj->mode == STRITER_MODE_BYTE) {
+        char_str = striter_get_byte_at_position(
+            ZSTR_VAL(obj->str), 
+            ZSTR_LEN(obj->str), 
+            obj->char_index
         );
     }
     

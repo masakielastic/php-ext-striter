@@ -22,7 +22,8 @@ extern zend_class_entry *striter_string_iterator_ce;
 // Iterator mode enumeration
 typedef enum {
     STRITER_MODE_GRAPHEME = 0,
-    STRITER_MODE_CODEPOINT = 1
+    STRITER_MODE_CODEPOINT = 1,
+    STRITER_MODE_BYTE = 2
 } striter_mode_t;
 
 // StringIterator object structure
@@ -91,6 +92,8 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
 #endif
 
 striter_mode_t striter_parse_mode(const char *mode_str);
+size_t striter_count_bytes(const char *str, size_t len);
+zend_string *striter_get_byte_at_position(const char *str, size_t str_len, size_t byte_index);
 
 // StringIterator class initialization
 void striter_string_iterator_init(void);
