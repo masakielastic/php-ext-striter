@@ -40,8 +40,8 @@ static void striter_string_iterator_free_object(zend_object *object)
     zend_object_std_dtor(&obj->std);
 }
 
-// StringIterator::__construct method
-PHP_METHOD(StringIterator, __construct)
+// _StrIterIterator::__construct method
+PHP_METHOD(_StrIterIterator, __construct)
 {
     zend_string *str;
     zend_string *mode = NULL;
@@ -83,8 +83,8 @@ PHP_METHOD(StringIterator, __construct)
 }
 
 
-// StringIterator::current method
-PHP_METHOD(StringIterator, current)
+// _StrIterIterator::current method
+PHP_METHOD(_StrIterIterator, current)
 {
     ZEND_PARSE_PARAMETERS_NONE();
     
@@ -138,8 +138,8 @@ PHP_METHOD(StringIterator, current)
     }
 }
 
-// StringIterator::key method
-PHP_METHOD(StringIterator, key)
+// _StrIterIterator::key method
+PHP_METHOD(_StrIterIterator, key)
 {
     ZEND_PARSE_PARAMETERS_NONE();
     
@@ -148,8 +148,8 @@ PHP_METHOD(StringIterator, key)
     RETURN_LONG(obj->char_index);
 }
 
-// StringIterator::next method
-PHP_METHOD(StringIterator, next)
+// _StrIterIterator::next method
+PHP_METHOD(_StrIterIterator, next)
 {
     ZEND_PARSE_PARAMETERS_NONE();
     
@@ -163,8 +163,8 @@ PHP_METHOD(StringIterator, next)
     obj->char_index++;
 }
 
-// StringIterator::rewind method
-PHP_METHOD(StringIterator, rewind)
+// _StrIterIterator::rewind method
+PHP_METHOD(_StrIterIterator, rewind)
 {
     ZEND_PARSE_PARAMETERS_NONE();
     
@@ -174,8 +174,8 @@ PHP_METHOD(StringIterator, rewind)
     obj->char_index = 0;
 }
 
-// StringIterator::valid method
-PHP_METHOD(StringIterator, valid)
+// _StrIterIterator::valid method
+PHP_METHOD(_StrIterIterator, valid)
 {
     ZEND_PARSE_PARAMETERS_NONE();
     
@@ -184,22 +184,22 @@ PHP_METHOD(StringIterator, valid)
     RETURN_BOOL(obj->str && obj->char_index < obj->total_chars);
 }
 
-// Method entries for StringIterator class
+// Method entries for _StrIterIterator class
 static const zend_function_entry striter_string_iterator_methods[] = {
-    PHP_ME(StringIterator, __construct, arginfo_stringiterator_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(StringIterator, current, arginfo_stringiterator_current, ZEND_ACC_PUBLIC)
-    PHP_ME(StringIterator, key, arginfo_stringiterator_key, ZEND_ACC_PUBLIC)
-    PHP_ME(StringIterator, next, arginfo_stringiterator_next, ZEND_ACC_PUBLIC)
-    PHP_ME(StringIterator, rewind, arginfo_stringiterator_rewind, ZEND_ACC_PUBLIC)
-    PHP_ME(StringIterator, valid, arginfo_stringiterator_valid, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, __construct, arginfo_striteriterator_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, current, arginfo_striteriterator_current, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, key, arginfo_striteriterator_key, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, next, arginfo_striteriterator_next, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, rewind, arginfo_striteriterator_rewind, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, valid, arginfo_striteriterator_valid, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
-// Initialize StringIterator class
+// Initialize _StrIterIterator class
 void striter_string_iterator_init(void)
 {
     zend_class_entry ce;
-    INIT_CLASS_ENTRY(ce, "StringIterator", striter_string_iterator_methods);
+    INIT_CLASS_ENTRY(ce, "_StrIterIterator", striter_string_iterator_methods);
     striter_string_iterator_ce = zend_register_internal_class(&ce);
     striter_string_iterator_ce->create_object = striter_string_iterator_create_object;
     

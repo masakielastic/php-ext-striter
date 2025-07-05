@@ -16,7 +16,7 @@
 extern zend_module_entry striter_module_entry;
 #define phpext_striter_ptr &striter_module_entry
 
-// StringIterator class entry
+// _StrIterIterator class entry
 extern zend_class_entry *striter_string_iterator_ce;
 
 // Iterator mode enumeration
@@ -26,7 +26,7 @@ typedef enum {
     STRITER_MODE_BYTE = 2
 } striter_mode_t;
 
-// StringIterator object structure
+// _StrIterIterator object structure
 typedef struct _striter_string_iterator_obj {
     zend_string *str;           // Source string
     size_t position;            // Current byte position in string
@@ -50,37 +50,37 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_str_iter, 0, 0, 1)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_STRING, 1, "\"grapheme\"")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_construct, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_construct, 0, 0, 1)
     ZEND_ARG_TYPE_INFO(0, str, IS_STRING, 0)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, mode, IS_STRING, 1, "\"grapheme\"")
 ZEND_END_ARG_INFO()
 
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_current, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_current, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_key, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_key, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_next, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_next, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_rewind, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_rewind, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_stringiterator_valid, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_valid, 0, 0, 0)
 ZEND_END_ARG_INFO()
 PHP_MINIT_FUNCTION(striter);
 PHP_MSHUTDOWN_FUNCTION(striter);
 PHP_MINFO_FUNCTION(striter);
 
-// StringIterator class method declarations
-PHP_METHOD(StringIterator, __construct);
-PHP_METHOD(StringIterator, current);
-PHP_METHOD(StringIterator, key);
-PHP_METHOD(StringIterator, next);
-PHP_METHOD(StringIterator, rewind);
-PHP_METHOD(StringIterator, valid);
+// _StrIterIterator class method declarations
+PHP_METHOD(_StrIterIterator, __construct);
+PHP_METHOD(_StrIterIterator, current);
+PHP_METHOD(_StrIterIterator, key);
+PHP_METHOD(_StrIterIterator, next);
+PHP_METHOD(_StrIterIterator, rewind);
+PHP_METHOD(_StrIterIterator, valid);
 
 // Internal utility functions
 size_t striter_count_utf8_chars(const char *str, size_t len);
@@ -95,7 +95,7 @@ striter_mode_t striter_parse_mode(const char *mode_str);
 size_t striter_count_bytes(const char *str, size_t len);
 zend_string *striter_get_byte_at_position(const char *str, size_t str_len, size_t byte_index);
 
-// StringIterator class initialization
+// _StrIterIterator class initialization
 void striter_string_iterator_init(void);
 zend_object *striter_string_iterator_create_object(zend_class_entry *ce);
 
