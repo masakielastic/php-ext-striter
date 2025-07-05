@@ -8,47 +8,69 @@ Implement a `str_iter` function that takes a string parameter and returns a Stri
 PHP_FUNCTION(str_iter)
 {
     zend_string *str;
+    zend_string *mode = NULL;
     
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STR(str)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(mode)
     ZEND_PARSE_PARAMETERS_END();
+    
+    // Default mode is "grapheme"
+    // Supported modes: "grapheme", "codepoint"
     
     // Create and return StringIterator object
 }
 ```
 
+## Second Parameter Specification
+- **Default**: `"grapheme"` - Uses PCRE2 to handle Unicode grapheme clusters
+- **Alternative**: `"codepoint"` - Uses `php_next_utf8_char` for individual codepoints
+- **Grapheme mode**: Handles complex Unicode sequences like emoji with modifiers, combining characters
+- **Codepoint mode**: Maintains original behavior for individual Unicode codepoints
+
 ## StringIterator Class Structure
 
 ### Class Definition
 ```c
+typedef enum {
+    STRITER_MODE_GRAPHEME = 0,
+    STRITER_MODE_CODEPOINT = 1
+} striter_mode_t;
+
 typedef struct _striter_string_iterator_obj {
     zend_string *str;           // Source string
     size_t position;            // Current byte position in string
     size_t char_index;          // Current character index (0-based)
-    size_t total_chars;         // Total UTF-8 characters in string
+    size_t total_chars;         // Total characters in string
+    striter_mode_t mode;        // Iteration mode (grapheme or codepoint)
     zend_object std;            // Standard object
 } striter_string_iterator_obj;
 ```
 
 ### Required Methods
 
-#### 1. `__construct(string $str)`
-- Initialize the iterator with the source string
-- Calculate total character count using `php_next_utf8_char`
+#### 1. `__construct(string $str, string $mode = "grapheme")`
+- Initialize the iterator with the source string and mode
+- Calculate total character count based on mode:
+  - Grapheme mode: Use PCRE2 with `\X` pattern for grapheme clusters
+  - Codepoint mode: Use `php_next_utf8_char` for individual codepoints
 
 #### 2. `getIterator(): Iterator`
 - Return `$this` (self-iterator pattern)
 
 #### 3. `current(): string`
-- Return current UTF-8 character as string
-- Use `php_next_utf8_char` to extract character at current position
+- Return current character/grapheme cluster as string
+- Mode-dependent extraction:
+  - Grapheme mode: Use PCRE2 to extract grapheme cluster at current position
+  - Codepoint mode: Use `php_next_utf8_char` to extract codepoint at current position
 
 #### 4. `key(): int`
 - Return current character index (0-based)
 
 #### 5. `next(): void`
-- Advance to next UTF-8 character
-- Use `php_next_utf8_char` to find next character boundary
+- Advance to next character/grapheme cluster
+- Mode-dependent advancement logic
 
 #### 6. `rewind(): void`
 - Reset position to beginning (position = 0, char_index = 0)
@@ -56,12 +78,22 @@ typedef struct _striter_string_iterator_obj {
 #### 7. `valid(): bool`
 - Check if current position is valid (char_index < total_chars)
 
-## UTF-8 Character Iteration Strategy
+## Character Iteration Strategy
 
 ### Invalid Byte Sequence Handling
-**Important specification**: Invalid byte sequences are treated as regular characters. The implementation ignores the `status` parameter from `php_next_utf8_char` and processes all bytes as characters regardless of UTF-8 validity.
+**Important specification**: Invalid byte sequences are treated as regular characters. The implementation ignores error conditions and processes all bytes as characters regardless of UTF-8 validity.
 
-### Using php_next_utf8_char
+### Dual Mode Implementation
+
+#### Grapheme Mode (Default) - Using PCRE2
+```c
+// Use PCRE2 with \X pattern for grapheme cluster extraction
+pcre2_code *re;
+PCRE2_SPTR pattern = (PCRE2_SPTR)"\\X";  // Unicode extended grapheme cluster
+re = pcre2_compile(pattern, PCRE2_ZERO_TERMINATED, PCRE2_UTF | PCRE2_UCP, &errorcode, &erroroffset, NULL);
+```
+
+#### Codepoint Mode - Using php_next_utf8_char
 Based on json_encoder.c usage pattern:
 ```c
 size_t pos = 0;
@@ -74,31 +106,23 @@ unsigned int char_code = php_next_utf8_char((unsigned char *)str_val, remaining_
 ```
 
 ### Character Extraction Process
+
+#### Grapheme Mode Process
+1. Use PCRE2 with `\X` pattern to match grapheme clusters
+2. Extract matched substring as current grapheme cluster
+3. Handle PCRE2 known bug with consecutive emoji sequences
+4. Track grapheme cluster index
+
+#### Codepoint Mode Process
 1. Start at byte position 0
 2. Use `php_next_utf8_char` to get character and advance position
 3. **Ignore status return value** - treat all byte sequences as characters
 4. Convert Unicode codepoint back to UTF-8 string for `current()` method
 5. Track both byte position and character index
 
-### Total Character Count Calculation
-```c
-static size_t count_utf8_chars(const char *str, size_t len) {
-    size_t char_count = 0;
-    size_t pos = 0;
-    
-    while (pos < len) {
-        size_t old_pos = pos;
-        zend_result status;
-        php_next_utf8_char((unsigned char *)str + old_pos, len - old_pos, &pos, &status);
-        
-        // Status is ignored - all sequences are treated as characters
-        pos += old_pos; // Adjust position to be absolute
-        char_count++;
-    }
-    
-    return char_count;
-}
-```
+### PCRE2 Known Issues
+- **Consecutive emoji bug**: PCRE2 may incorrectly handle sequences of multiple emoji
+- **Workaround**: Implement fallback logic or additional validation for emoji sequences
 
 ## Implementation Files Structure
 
@@ -156,6 +180,7 @@ static size_t count_utf8_chars(const char *str, size_t len) {
 
 ## Dependencies
 - `ext/standard/html.h` for `php_next_utf8_char`
+- **PCRE2 library** for grapheme cluster handling
 - Standard Zend iterator interfaces
 - Zend string manipulation functions
 
@@ -165,6 +190,14 @@ PHP_ARG_ENABLE(striter, whether to enable striter support,
 [  --enable-striter        Enable striter support])
 
 if test "$PHP_STRITER" != "no"; then
+  PHP_CHECK_LIBRARY(pcre2-8, pcre2_compile_8, [
+    PHP_ADD_LIBRARY(pcre2-8, 1, STRITER_SHARED_LIBADD)
+    AC_DEFINE(HAVE_PCRE2, 1, [Have PCRE2 library])
+  ], [
+    AC_MSG_ERROR([PCRE2 library not found. Please install libpcre2-dev])
+  ])
+  
   PHP_NEW_EXTENSION(striter, striter.c string_iterator.c, $ext_shared)
+  PHP_SUBST(STRITER_SHARED_LIBADD)
 fi
 ```

@@ -23,6 +23,7 @@ zend_object *striter_string_iterator_create_object(zend_class_entry *ce)
     obj->position = 0;
     obj->char_index = 0;
     obj->total_chars = 0;
+    obj->mode = STRITER_MODE_GRAPHEME;
     
     return &obj->std;
 }
@@ -43,18 +44,40 @@ static void striter_string_iterator_free_object(zend_object *object)
 PHP_METHOD(StringIterator, __construct)
 {
     zend_string *str;
+    zend_string *mode = NULL;
     
-    ZEND_PARSE_PARAMETERS_START(1, 1)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_STR(str)
+        Z_PARAM_OPTIONAL
+        Z_PARAM_STR_OR_NULL(mode)
     ZEND_PARSE_PARAMETERS_END();
     
     striter_string_iterator_obj *obj = striter_string_iterator_from_obj(Z_OBJ_P(ZEND_THIS));
+    
+    // Parse mode parameter
+    striter_mode_t iter_mode = STRITER_MODE_GRAPHEME; // Default
+    if (mode != NULL) {
+        iter_mode = striter_parse_mode(ZSTR_VAL(mode));
+    }
     
     // Initialize the iterator
     obj->str = zend_string_copy(str);
     obj->position = 0;
     obj->char_index = 0;
-    obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
+    obj->mode = iter_mode;
+    
+    // Calculate total character count based on mode
+    if (iter_mode == STRITER_MODE_GRAPHEME) {
+#ifdef HAVE_PCRE2
+        obj->total_chars = striter_count_graphemes_pcre2(ZSTR_VAL(str), ZSTR_LEN(str));
+#else
+        // Fallback to codepoint mode if PCRE2 not available
+        obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
+        obj->mode = STRITER_MODE_CODEPOINT;
+#endif
+    } else {
+        obj->total_chars = striter_count_utf8_chars(ZSTR_VAL(str), ZSTR_LEN(str));
+    }
 }
 
 
@@ -70,12 +93,35 @@ PHP_METHOD(StringIterator, current)
     }
     
     size_t byte_pos;
-    zend_string *char_str = striter_get_char_at_position(
-        ZSTR_VAL(obj->str), 
-        ZSTR_LEN(obj->str), 
-        obj->char_index, 
-        &byte_pos
-    );
+    zend_string *char_str = NULL;
+    
+    // Mode-dependent character extraction
+    if (obj->mode == STRITER_MODE_GRAPHEME) {
+#ifdef HAVE_PCRE2
+        char_str = striter_get_grapheme_at_position(
+            ZSTR_VAL(obj->str), 
+            ZSTR_LEN(obj->str), 
+            obj->char_index, 
+            &byte_pos
+        );
+#endif
+        // Fallback to codepoint mode if PCRE2 not available or fails
+        if (char_str == NULL) {
+            char_str = striter_get_char_at_position(
+                ZSTR_VAL(obj->str), 
+                ZSTR_LEN(obj->str), 
+                obj->char_index, 
+                &byte_pos
+            );
+        }
+    } else {
+        char_str = striter_get_char_at_position(
+            ZSTR_VAL(obj->str), 
+            ZSTR_LEN(obj->str), 
+            obj->char_index, 
+            &byte_pos
+        );
+    }
     
     if (char_str) {
         RETURN_STR(char_str);
