@@ -1,0 +1,49 @@
+# Build artifacts
+*.lo
+*.o
+*.la
+*.so
+*.dep
+.libs/
+modules/
+build/
+autom4te.cache/
+
+# Generated files
+config.h
+config.h.in
+config.status
+config.log
+configure
+configure.ac
+Makefile
+Makefile.global
+Makefile.objects
+Makefile.fragments
+acinclude.m4
+aclocal.m4
+install-sh
+libtool
+ltmain.sh
+missing
+mkinstalldirs
+run-tests.php
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test output
+tests/*.diff
+tests/*.exp
+tests/*.log
+tests/*.out
+tests/*.php
+tests/*.sh
