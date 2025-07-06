@@ -8,7 +8,7 @@ A PHP extension that provides advanced string iteration capabilities for UTF-8 s
 - **Unicode Codepoint Iteration**: Iterate over individual Unicode codepoints
 - **Byte-level Iteration**: Iterate over individual bytes for low-level string processing
 - **UTF-8 Safe**: Proper handling of multibyte UTF-8 characters
-- **Iterator Interface**: Implements PHP's Iterator interface for seamless foreach loops
+- **Standard PHP Interfaces**: Implements Iterator, IteratorAggregate, and Countable interfaces for seamless integration
 
 ## Installation
 
@@ -113,6 +113,30 @@ while ($iterator->valid()) {
 }
 ```
 
+### Using Countable Interface
+
+```php
+<?php
+$text = "Hello🌍";
+$iterator = str_iter($text, "grapheme");
+
+echo "Total characters: " . count($iterator) . "\n"; // Output: 6
+```
+
+### Using IteratorAggregate Interface
+
+```php
+<?php
+$text = "ABC";
+$iterator = str_iter($text);
+
+// Get inner iterator for advanced operations
+$innerIterator = $iterator->getIterator();
+foreach ($innerIterator as $key => $value) {
+    echo "[$key] => '$value'\n";
+}
+```
+
 ## API Reference
 
 ### Functions
@@ -129,13 +153,20 @@ Creates a new string iterator.
 
 ### Iterator Methods
 
-The returned iterator implements PHP's Iterator interface:
+The returned iterator implements PHP's Iterator, IteratorAggregate, and Countable interfaces:
 
+**Iterator Methods:**
 - `current()`: Returns the current character/byte
 - `key()`: Returns the current index
 - `next()`: Advances to the next position
 - `rewind()`: Resets the iterator to the beginning
 - `valid()`: Checks if the current position is valid
+
+**IteratorAggregate Methods:**
+- `getIterator()`: Returns the iterator itself for nested iteration
+
+**Countable Methods:**
+- `count()`: Returns the total number of elements in the iterator
 
 ## Examples
 
