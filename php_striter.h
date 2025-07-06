@@ -41,6 +41,12 @@ static inline striter_string_iterator_obj *striter_string_iterator_from_obj(zend
     return (striter_string_iterator_obj*)((char*)(obj) - XtOffsetOf(striter_string_iterator_obj, std));
 }
 
+// Internal iterator structure for IteratorAggregate
+typedef struct _striter_iterator {
+    zend_object_iterator intern;
+    size_t current_pos;
+} striter_iterator;
+
 // Function declarations
 PHP_FUNCTION(str_iter);
 
@@ -70,6 +76,13 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_valid, 0, 0, 0)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_getiterator, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_striteriterator_count, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 PHP_MINIT_FUNCTION(striter);
 PHP_MSHUTDOWN_FUNCTION(striter);
 PHP_MINFO_FUNCTION(striter);
@@ -81,6 +94,8 @@ PHP_METHOD(_StrIterIterator, key);
 PHP_METHOD(_StrIterIterator, next);
 PHP_METHOD(_StrIterIterator, rewind);
 PHP_METHOD(_StrIterIterator, valid);
+PHP_METHOD(_StrIterIterator, getIterator);
+PHP_METHOD(_StrIterIterator, count);
 
 // Internal utility functions
 size_t striter_count_utf8_chars(const char *str, size_t len);

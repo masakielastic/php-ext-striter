@@ -40,6 +40,133 @@ static void striter_string_iterator_free_object(zend_object *object)
     zend_object_std_dtor(&obj->std);
 }
 
+// Count elements handler for Countable interface
+static zend_result striter_string_iterator_count_elements(zend_object *object, zend_long *count)
+{
+    striter_string_iterator_obj *obj = striter_string_iterator_from_obj(object);
+    *count = obj->total_chars;
+    return SUCCESS;
+}
+
+// Internal iterator functions for IteratorAggregate
+static void striter_iterator_dtor(zend_object_iterator *iter)
+{
+    zval_ptr_dtor(&iter->data);
+}
+
+static void striter_iterator_rewind(zend_object_iterator *iter)
+{
+    ((striter_iterator*)iter)->current_pos = 0;
+}
+
+static zend_result striter_iterator_valid(zend_object_iterator *iter)
+{
+    striter_iterator *iterator = (striter_iterator*)iter;
+    striter_string_iterator_obj *object = striter_string_iterator_from_obj(Z_OBJ(iter->data));
+
+    if (iterator->current_pos < object->total_chars) {
+        return SUCCESS;
+    }
+    return FAILURE;
+}
+
+static zval *striter_iterator_get_current(zend_object_iterator *iter)
+{
+    striter_iterator *iterator = (striter_iterator*)iter;
+    striter_string_iterator_obj *object = striter_string_iterator_from_obj(Z_OBJ(iter->data));
+
+    if (iterator->current_pos >= object->total_chars) {
+        return &EG(uninitialized_zval);
+    }
+
+    size_t byte_pos;
+    zend_string *char_str = NULL;
+    
+    // Mode-dependent character extraction
+    if (object->mode == STRITER_MODE_GRAPHEME) {
+#ifdef HAVE_PCRE2
+        char_str = striter_get_grapheme_at_position(
+            ZSTR_VAL(object->str), 
+            ZSTR_LEN(object->str), 
+            iterator->current_pos, 
+            &byte_pos
+        );
+#endif
+        // Fallback to codepoint mode if PCRE2 not available or fails
+        if (char_str == NULL) {
+            char_str = striter_get_char_at_position(
+                ZSTR_VAL(object->str), 
+                ZSTR_LEN(object->str), 
+                iterator->current_pos, 
+                &byte_pos
+            );
+        }
+    } else if (object->mode == STRITER_MODE_CODEPOINT) {
+        char_str = striter_get_char_at_position(
+            ZSTR_VAL(object->str), 
+            ZSTR_LEN(object->str), 
+            iterator->current_pos, 
+            &byte_pos
+        );
+    } else if (object->mode == STRITER_MODE_BYTE) {
+        char_str = striter_get_byte_at_position(
+            ZSTR_VAL(object->str), 
+            ZSTR_LEN(object->str), 
+            iterator->current_pos
+        );
+    }
+
+    if (char_str) {
+        zval *current = emalloc(sizeof(zval));
+        ZVAL_STR(current, char_str);
+        return current;
+    } else {
+        return &EG(uninitialized_zval);
+    }
+}
+
+static void striter_iterator_get_key(zend_object_iterator *iter, zval *key)
+{
+    striter_iterator *iterator = (striter_iterator*)iter;
+    ZVAL_LONG(key, iterator->current_pos);
+}
+
+static void striter_iterator_move_forward(zend_object_iterator *iter)
+{
+    ((striter_iterator*)iter)->current_pos++;
+}
+
+// Iterator function table
+static const zend_object_iterator_funcs striter_iterator_funcs = {
+    striter_iterator_dtor,
+    striter_iterator_valid,
+    striter_iterator_get_current,
+    striter_iterator_get_key,
+    striter_iterator_move_forward,
+    striter_iterator_rewind,
+    NULL,
+    NULL,
+};
+
+// Get iterator handler for IteratorAggregate
+static zend_object_iterator *striter_string_iterator_get_iterator(zend_class_entry *ce, zval *object, int by_ref)
+{
+    if (by_ref) {
+        zend_throw_error(NULL, "An iterator cannot be used with foreach by reference");
+        return NULL;
+    }
+
+    // Create internal iterator that wraps our object and implements Iterator interface
+    striter_iterator *iterator = emalloc(sizeof(striter_iterator));
+    zend_iterator_init((zend_object_iterator*)iterator);
+
+    ZVAL_OBJ_COPY(&iterator->intern.data, Z_OBJ_P(object));
+    iterator->intern.funcs = &striter_iterator_funcs;
+    iterator->current_pos = 0;
+
+    return &iterator->intern;
+}
+
 // _StrIterIterator::__construct method
 PHP_METHOD(_StrIterIterator, __construct)
 {
@@ -184,14 +311,30 @@ PHP_METHOD(_StrIterIterator, valid)
     RETURN_BOOL(obj->str && obj->char_index < obj->total_chars);
 }
 
+// _StrIterIterator::getIterator method  
+PHP_METHOD(_StrIterIterator, getIterator)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    
+    // Return self since this class implements Iterator
+    RETURN_ZVAL(ZEND_THIS, 1, 0);
+}
+
+// _StrIterIterator::count method
+PHP_METHOD(_StrIterIterator, count)
+{
+    ZEND_PARSE_PARAMETERS_NONE();
+    
+    striter_string_iterator_obj *obj = striter_string_iterator_from_obj(Z_OBJ_P(ZEND_THIS));
+    
+    RETURN_LONG(obj->total_chars);
+}
+
 // Method entries for _StrIterIterator class
 static const zend_function_entry striter_string_iterator_methods[] = {
     PHP_ME(_StrIterIterator, __construct, arginfo_striteriterator_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(_StrIterIterator, current, arginfo_striteriterator_current, ZEND_ACC_PUBLIC)
-    PHP_ME(_StrIterIterator, key, arginfo_striteriterator_key, ZEND_ACC_PUBLIC)
-    PHP_ME(_StrIterIterator, next, arginfo_striteriterator_next, ZEND_ACC_PUBLIC)
-    PHP_ME(_StrIterIterator, rewind, arginfo_striteriterator_rewind, ZEND_ACC_PUBLIC)
-    PHP_ME(_StrIterIterator, valid, arginfo_striteriterator_valid, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, getIterator, arginfo_striteriterator_getiterator, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, count, arginfo_striteriterator_count, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
@@ -207,7 +350,11 @@ void striter_string_iterator_init(void)
     memcpy(&striter_string_iterator_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
     striter_string_iterator_handlers.free_obj = striter_string_iterator_free_object;
     striter_string_iterator_handlers.offset = XtOffsetOf(striter_string_iterator_obj, std);
+    striter_string_iterator_handlers.count_elements = striter_string_iterator_count_elements;
     
-    // Implement Iterator interface only
-    zend_class_implements(striter_string_iterator_ce, 1, zend_ce_iterator);
+    // Set get_iterator handler for IteratorAggregate
+    striter_string_iterator_ce->get_iterator = striter_string_iterator_get_iterator;
+    
+    // Implement IteratorAggregate and Countable interfaces
+    zend_class_implements(striter_string_iterator_ce, 2, zend_ce_aggregate, zend_ce_countable);
 }
