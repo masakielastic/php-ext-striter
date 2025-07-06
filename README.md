@@ -100,19 +100,6 @@ foreach ($iterator as $index => $byte) {
 }
 ```
 
-### Manual Iterator Usage
-
-```php
-<?php
-$iterator = str_iter("ABC");
-$iterator->rewind();
-
-while ($iterator->valid()) {
-    echo "Key: " . $iterator->key() . ", Value: '" . $iterator->current() . "'\n";
-    $iterator->next();
-}
-```
-
 ### Using Countable Interface
 
 ```php
@@ -153,14 +140,7 @@ Creates a new string iterator.
 
 ### Iterator Methods
 
-The returned iterator implements PHP's Iterator, IteratorAggregate, and Countable interfaces:
-
-**Iterator Methods:**
-- `current()`: Returns the current character/byte
-- `key()`: Returns the current index
-- `next()`: Advances to the next position
-- `rewind()`: Resets the iterator to the beginning
-- `valid()`: Checks if the current position is valid
+The returned iterator implements PHP's IteratorAggregate and Countable interfaces:
 
 **IteratorAggregate Methods:**
 - `getIterator()`: Returns the iterator itself for nested iteration
