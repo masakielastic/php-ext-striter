@@ -51,6 +51,10 @@ static zend_result striter_string_iterator_count_elements(zend_object *object, z
 // Internal iterator functions for IteratorAggregate
 static void striter_iterator_dtor(zend_object_iterator *iter)
 {
+    striter_iterator *iterator = (striter_iterator*)iter;
+    if (Z_TYPE(iterator->current_value) != IS_UNDEF) {
+        zval_ptr_dtor(&iterator->current_value);
+    }
     zval_ptr_dtor(&iter->data);
 }
 
@@ -117,9 +121,13 @@ static zval *striter_iterator_get_current(zend_object_iterator *iter)
     }
 
     if (char_str) {
-        zval *current = emalloc(sizeof(zval));
-        ZVAL_STR(current, char_str);
-        return current;
+        // Store the current value in the iterator structure
+        striter_iterator *iterator = (striter_iterator*)iter;
+        if (Z_TYPE(iterator->current_value) != IS_UNDEF) {
+            zval_ptr_dtor(&iterator->current_value);
+        }
+        ZVAL_STR(&iterator->current_value, char_str);
+        return &iterator->current_value;
     } else {
         return &EG(uninitialized_zval);
     }
@@ -163,6 +171,7 @@ static zend_object_iterator *striter_string_iterator_get_iterator(zend_class_ent
     ZVAL_OBJ_COPY(&iterator->intern.data, Z_OBJ_P(object));
     iterator->intern.funcs = &striter_iterator_funcs;
     iterator->current_pos = 0;
+    ZVAL_UNDEF(&iterator->current_value);
 
     return &iterator->intern;
 }

@@ -45,6 +45,7 @@ static inline striter_string_iterator_obj *striter_string_iterator_from_obj(zend
 typedef struct _striter_iterator {
     zend_object_iterator intern;
     size_t current_pos;
+    zval current_value;
 } striter_iterator;
 
 // Function declarations
@@ -103,8 +104,12 @@ zend_string *striter_get_char_at_position(const char *str, size_t str_len, size_
 
 #ifdef HAVE_PCRE2
 extern pcre2_code *striter_grapheme_pattern;
+#ifdef ZTS
+extern zend_mutex_t striter_pattern_mutex;
+#endif
 size_t striter_count_graphemes_pcre2(const char *str, size_t len);
 zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, size_t char_index, size_t *byte_pos);
+pcre2_code *striter_get_grapheme_pattern(void);
 #endif
 
 striter_mode_t striter_parse_mode(const char *mode_str);
