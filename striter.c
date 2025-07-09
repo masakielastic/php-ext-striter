@@ -125,48 +125,37 @@ striter_mode_t striter_parse_mode(const char *mode_str) {
 }
 
 #ifdef HAVE_PCRE2
+// Global cached compiled pattern for grapheme clusters
+pcre2_code *striter_grapheme_pattern = NULL;
+
 // Count grapheme clusters using PCRE2
 size_t striter_count_graphemes_pcre2(const char *str, size_t len) {
     if (len == 0) {
         return 0;
     }
     
-    pcre2_code *re;
+    // Use cached compiled pattern
+    if (striter_grapheme_pattern == NULL) {
+        // Fallback to byte-by-byte counting if pattern not available
+        return len;
+    }
+    
     pcre2_match_data *match_data;
-    PCRE2_SPTR pattern = (PCRE2_SPTR)"\\X";  // Unicode extended grapheme cluster
     PCRE2_SPTR subject = (PCRE2_SPTR)str;
-    int errorcode;
-    PCRE2_SIZE erroroffset;
     size_t count = 0;
     PCRE2_SIZE start_offset = 0;
     int rc;
     
-    // Compile pattern with UTF-8 and Unicode properties
-    re = pcre2_compile(
-        pattern,
-        PCRE2_ZERO_TERMINATED,
-        PCRE2_UTF | PCRE2_UCP,
-        &errorcode,
-        &erroroffset,
-        NULL
-    );
-    
-    if (re == NULL) {
-        // Fallback to byte-by-byte counting on compilation error
-        return len;
-    }
-    
     // Create match data
-    match_data = pcre2_match_data_create_from_pattern(re, NULL);
+    match_data = pcre2_match_data_create_from_pattern(striter_grapheme_pattern, NULL);
     if (match_data == NULL) {
-        pcre2_code_free(re);
         return len;
     }
     
     // Scan string for grapheme clusters
     while (start_offset < len) {
         rc = pcre2_match(
-            re,
+            striter_grapheme_pattern,
             subject,
             len,
             start_offset,
@@ -205,7 +194,6 @@ size_t striter_count_graphemes_pcre2(const char *str, size_t len) {
     }
     
     pcre2_match_data_free(match_data);
-    pcre2_code_free(re);
     
     return count;
 }
@@ -216,27 +204,8 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
         return NULL;
     }
     
-    pcre2_code *re;
-    pcre2_match_data *match_data;
-    PCRE2_SPTR pattern = (PCRE2_SPTR)"\\X";
-    PCRE2_SPTR subject = (PCRE2_SPTR)str;
-    int errorcode;
-    PCRE2_SIZE erroroffset;
-    size_t current_char = 0;
-    PCRE2_SIZE start_offset = 0;
-    int rc;
-    
-    // Compile pattern
-    re = pcre2_compile(
-        pattern,
-        PCRE2_ZERO_TERMINATED,
-        PCRE2_UTF | PCRE2_UCP,
-        &errorcode,
-        &erroroffset,
-        NULL
-    );
-    
-    if (re == NULL) {
+    // Use cached compiled pattern
+    if (striter_grapheme_pattern == NULL) {
         // Fallback to single byte
         if (byte_pos) {
             *byte_pos = char_index < str_len ? char_index : str_len - 1;
@@ -244,9 +213,14 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
         return zend_string_init(str + (char_index < str_len ? char_index : str_len - 1), 1, 0);
     }
     
-    match_data = pcre2_match_data_create_from_pattern(re, NULL);
+    pcre2_match_data *match_data;
+    PCRE2_SPTR subject = (PCRE2_SPTR)str;
+    size_t current_char = 0;
+    PCRE2_SIZE start_offset = 0;
+    int rc;
+    
+    match_data = pcre2_match_data_create_from_pattern(striter_grapheme_pattern, NULL);
     if (match_data == NULL) {
-        pcre2_code_free(re);
         if (byte_pos) {
             *byte_pos = char_index < str_len ? char_index : str_len - 1;
         }
@@ -256,7 +230,7 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
     // Find the char_index-th grapheme cluster
     while (start_offset < str_len && current_char <= char_index) {
         rc = pcre2_match(
-            re,
+            striter_grapheme_pattern,
             subject,
             str_len,
             start_offset,
@@ -275,7 +249,6 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
                         *byte_pos = start_offset;
                     }
                     pcre2_match_data_free(match_data);
-                    pcre2_code_free(re);
                     return zend_string_init(str + start_offset, 1, 0);
                 }
                 start_offset++;
@@ -296,7 +269,6 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
             zend_string *result = zend_string_init(str + match_start, cluster_len, 0);
             
             pcre2_match_data_free(match_data);
-            pcre2_code_free(re);
             return result;
         }
         
@@ -313,7 +285,6 @@ zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, s
     }
     
     pcre2_match_data_free(match_data);
-    pcre2_code_free(re);
     return NULL;
 }
 #endif
@@ -366,12 +337,41 @@ PHP_MINIT_FUNCTION(striter)
     // Initialize StringIterator class
     striter_string_iterator_init();
     
+#ifdef HAVE_PCRE2
+    // Compile and cache the grapheme pattern
+    PCRE2_SPTR pattern = (PCRE2_SPTR)"\\X";  // Unicode extended grapheme cluster
+    int errorcode;
+    PCRE2_SIZE erroroffset;
+    
+    striter_grapheme_pattern = pcre2_compile(
+        pattern,
+        PCRE2_ZERO_TERMINATED,
+        PCRE2_UTF | PCRE2_UCP,
+        &errorcode,
+        &erroroffset,
+        NULL
+    );
+    
+    if (striter_grapheme_pattern == NULL) {
+        // Pattern compilation failed, but we can still function with fallback
+        php_error_docref(NULL, E_WARNING, "Failed to compile grapheme pattern, using fallback mode");
+    }
+#endif
+    
     return SUCCESS;
 }
 
 // Module shutdown
 PHP_MSHUTDOWN_FUNCTION(striter)
 {
+#ifdef HAVE_PCRE2
+    // Free the cached compiled pattern
+    if (striter_grapheme_pattern != NULL) {
+        pcre2_code_free(striter_grapheme_pattern);
+        striter_grapheme_pattern = NULL;
+    }
+#endif
+    
     return SUCCESS;
 }
 

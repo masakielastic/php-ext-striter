@@ -102,6 +102,7 @@ size_t striter_count_utf8_chars(const char *str, size_t len);
 zend_string *striter_get_char_at_position(const char *str, size_t str_len, size_t char_index, size_t *byte_pos);
 
 #ifdef HAVE_PCRE2
+extern pcre2_code *striter_grapheme_pattern;
 size_t striter_count_graphemes_pcre2(const char *str, size_t len);
 zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, size_t char_index, size_t *byte_pos);
 #endif

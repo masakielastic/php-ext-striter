@@ -333,6 +333,11 @@ PHP_METHOD(_StrIterIterator, count)
 // Method entries for _StrIterIterator class
 static const zend_function_entry striter_string_iterator_methods[] = {
     PHP_ME(_StrIterIterator, __construct, arginfo_striteriterator_construct, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, current, arginfo_striteriterator_current, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, key, arginfo_striteriterator_key, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, next, arginfo_striteriterator_next, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, rewind, arginfo_striteriterator_rewind, ZEND_ACC_PUBLIC)
+    PHP_ME(_StrIterIterator, valid, arginfo_striteriterator_valid, ZEND_ACC_PUBLIC)
     PHP_ME(_StrIterIterator, getIterator, arginfo_striteriterator_getiterator, ZEND_ACC_PUBLIC)
     PHP_ME(_StrIterIterator, count, arginfo_striteriterator_count, ZEND_ACC_PUBLIC)
     PHP_FE_END
