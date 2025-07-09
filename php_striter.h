@@ -110,6 +110,7 @@ extern zend_mutex_t striter_pattern_mutex;
 size_t striter_count_graphemes_pcre2(const char *str, size_t len);
 zend_string *striter_get_grapheme_at_position(const char *str, size_t str_len, size_t char_index, size_t *byte_pos);
 pcre2_code *striter_get_grapheme_pattern(void);
+int striter_get_jit_status(void);
 #endif
 
 striter_mode_t striter_parse_mode(const char *mode_str);

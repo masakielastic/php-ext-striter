@@ -135,9 +135,28 @@ striter_mode_t striter_parse_mode(const char *mode_str) {
 #ifdef HAVE_PCRE2
 // Global cached compiled pattern for grapheme clusters
 pcre2_code *striter_grapheme_pattern = NULL;
+// JIT availability flag: -1 = not checked, 0 = not available, 1 = available
+static int striter_jit_available = -1;
 #ifdef ZTS
 zend_mutex_t striter_pattern_mutex;
 #endif
+
+// Check JIT availability at runtime
+static int striter_check_jit_support(void)
+{
+    if (striter_jit_available == -1) {
+        uint32_t jit_support;
+        int result = pcre2_config(PCRE2_CONFIG_JIT, &jit_support);
+        striter_jit_available = (result == 0 && jit_support) ? 1 : 0;
+    }
+    return striter_jit_available;
+}
+
+// Public function to get JIT status
+int striter_get_jit_status(void)
+{
+    return striter_check_jit_support();
+}
 
 // Thread-safe getter for grapheme pattern
 pcre2_code *striter_get_grapheme_pattern(void)
@@ -159,6 +178,12 @@ pcre2_code *striter_get_grapheme_pattern(void)
             &erroroffset,
             NULL
         );
+        
+        // Try JIT compilation if available
+        if (striter_grapheme_pattern != NULL && striter_check_jit_support()) {
+            int jit_result = pcre2_jit_compile(striter_grapheme_pattern, PCRE2_JIT_COMPLETE);
+            // JIT compilation failure is not fatal - pattern still works without JIT
+        }
     }
     
     pcre2_code *result = striter_grapheme_pattern;
@@ -425,5 +450,12 @@ PHP_MINFO_FUNCTION(striter)
     php_info_print_table_start();
     php_info_print_table_header(2, "striter support", "enabled");
     php_info_print_table_row(2, "Version", PHP_STRITER_VERSION);
+#ifdef HAVE_PCRE2
+    php_info_print_table_row(2, "PCRE2 support", "enabled");
+    php_info_print_table_row(2, "PCRE2 JIT support", 
+        striter_get_jit_status() ? "enabled" : "disabled");
+#else
+    php_info_print_table_row(2, "PCRE2 support", "disabled");
+#endif
     php_info_print_table_end();
 }
