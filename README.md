@@ -246,7 +246,7 @@ This project is open source. Please refer to the project's license file for deta
 
 ## Changelog
 
-### Version 1.0.0
+### Version 0.1.0
 - Initial release
 - Support for grapheme, codepoint, and byte iteration modes
 - PCRE2 integration for proper grapheme cluster detection
