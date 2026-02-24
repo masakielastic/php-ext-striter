@@ -14,8 +14,22 @@ A PHP extension that provides advanced string iteration capabilities for UTF-8 s
 
 ### Requirements
 
-- PHP 7.0 or higher
+- PHP 8.1 or higher
 - PCRE2 library (libpcre2-dev)
+
+### Using PIE (Recommended)
+
+[PIE](https://github.com/php/pie) (PHP Installer for Extensions) is the recommended way to install this extension.
+
+```bash
+# Install PIE if you haven't already
+composer global require php/pie
+
+# Install the extension
+pie install masakielastic/striter
+```
+
+PIE automatically handles building and enabling the extension.
 
 ### Build from Source
 
@@ -24,10 +38,11 @@ A PHP extension that provides advanced string iteration capabilities for UTF-8 s
 sudo apt-get install libpcre2-dev
 
 # Build extension
+cd ext
 phpize
 ./configure --enable-striter
 make
-make install
+sudo make install
 ```
 
 ### Enable Extension
@@ -210,11 +225,11 @@ The extension properly manages memory for string copies and PCRE2 objects, preve
 Run the included test files:
 
 ```bash
-php test_basic.php
-php test_grapheme.php
-php test_byte_mode.php
-php test_emoji_bug.php
-php test_invalid_utf8.php
+php tests/test_basic.php
+php tests/test_grapheme.php
+php tests/test_byte_mode.php
+php tests/test_emoji_bug.php
+php tests/test_invalid_utf8.php
 ```
 
 ## Contributing
