@@ -1,5 +1,5 @@
 {
-    "name": "masakielastic/php-ext-striter",
+    "name": "masakielastic/striter",
     "description": "PHP extension for string iteration with grapheme, codepoint, and byte modes",
     "type": "php-ext",
     "version": "1.0.0",
