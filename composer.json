@@ -2,7 +2,7 @@
     "name": "masakielastic/striter",
     "description": "PHP extension for string iteration with grapheme, codepoint, and byte modes",
     "type": "php-ext",
-    "version": "1.0.0",
+    "version": "0.1.0",
     "require": {
         "php": ">=8.1"
     },
