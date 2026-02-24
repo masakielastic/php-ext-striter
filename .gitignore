@@ -8,12 +8,19 @@
 modules/
 build/
 autom4te.cache/
+ext/.libs/
+ext/*.lo
+ext/*.o
+ext/*.la
+ext/*.so
+ext/*.dep
 
 # Generated files
 config.h
 config.h.in
 config.status
 config.log
+config.nice
 configure
 configure.ac
 Makefile
@@ -47,3 +54,4 @@ tests/*.log
 tests/*.out
 tests/*.php
 tests/*.sh
+!tests/test_*.php
